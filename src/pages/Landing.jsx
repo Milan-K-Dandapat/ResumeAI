@@ -34,15 +34,14 @@ export default function Landing() {
   </button>
 </div>
 
-        {/* 🔥 SEO HEADING (VERY IMPORTANT) */}
+{/* 🔥 SEO HEADING (OPTIMIZED) */}
 <div className="text-center mt-10 px-4">
   <h1 className="text-3xl md:text-5xl font-bold text-white leading-tight">
-    Free AI Resume Builder for Freshers (ATS Optimized)
+    Free AI Resume Builder for Freshers in India (ATS Friendly)
   </h1>
 
   <p className="text-slate-400 mt-4 max-w-2xl mx-auto text-sm sm:text-base">
-    Create professional ATS-friendly resumes using AI. Perfect for students,
-    freshers, and software engineers in India.
+    Build ATS-friendly resumes using AI. Perfect for students, freshers, and software engineers to get hired faster.
   </p>
 </div>
 
