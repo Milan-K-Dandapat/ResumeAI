@@ -32,16 +32,36 @@ export default function ModernTech1({ data, templateId }) {
 const formatList = (text, type = "") => {
   if (!text) return null;
 
-  const lines = text.split("\n");
+  const lines = text
+  .replace(/•/g, "\n•")   // 🔥 force new line before every bullet
+  .replace(/\.\s+(?=[A-Z])/g, ".\n") // 🔥 split sentences into new lines
+  .split("\n")
+  .map(l => l.trim())
+  .filter(Boolean);
+
+  let verbIndex = 0;
+  const verbs = ["Built", "Designed", "Implemented", "Created", "Developed"];
 
   return lines.map((line, i) => {
-    const clean = line.replace(/^[-•]\s*/, "").trim();
+    let clean = line
+  .replace(/^[-•]\s*/, "")
+  .replace(/•/g, "") // 🔥 remove inline bullets
+  .trim();
+
+    // remove bad words
+    clean = clean.replace(/undefined/gi, "");
+
+    // fix repetition
+    clean = clean.replace(/developed/gi, () => {
+      const word = verbs[verbIndex % verbs.length];
+      verbIndex++;
+      return word;
+    });
+
     if (!clean) return null;
 
-    // 🔥 HEADING ONLY FOR PROJECTS & EXPERIENCE
-   const isHeading =
-  (type === "project" || type === "experience") &&
-  i === 0;
+    const isHeading =
+      (type === "project" || type === "experience") && i === 0;
 
     if (isHeading) {
       return (
@@ -52,7 +72,7 @@ const formatList = (text, type = "") => {
     }
 
     return (
-      <div key={i} className="flex gap-2 mb-0.5">
+      <div key={i} className="flex gap-2 mb-0.5 leading-tight">
         <span className="text-gray-400">•</span>
         <span>{clean}</span>
       </div>
@@ -73,7 +93,7 @@ const formatList = (text, type = "") => {
 
   // 🔹 SECTION COMPONENT
   const Section = ({ title, children }) => (
-  <section className="mb-4 break-inside-avoid">
+  <section className="mb-4">
       <h2 className="text-[13px] font-semibold mb-1 border-b border-gray-300 pb-1 uppercase tracking-wide">
         {title}
       </h2>
@@ -98,7 +118,7 @@ const formatList = (text, type = "") => {
       {/* 🔥 HEADER */}
       <div className="flex justify-between items-start border-b pb-4 mb-5 gap-3">
         <div className="flex-1 min-w-0">
-          <h1 className="text-[20px] font-bold leading-tight">
+          <h1 className="text-[20px] font-bold break-words">
   {fullName}
 </h1>
           <p className="text-blue-600 text-sm mt-1">{headline}</p>
@@ -111,48 +131,13 @@ const formatList = (text, type = "") => {
       </div>
 
       {/* 🔥 SOCIAL */}
- {(linkedin || github || portfolio) && (
-  <div className="flex flex-wrap gap-3 mt-3">
-
-    {linkedin && (
-      <a
-        href={linkedin}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="flex items-center gap-1 px-2 py-1 rounded bg-white/20 hover:bg-white/30 transition"
-      >
-        <span>LinkedIn:</span>
-        <span>{linkedin.replace("https://", "")}</span>
-      </a>
-    )}
-
-    {github && (
-      <a
-        href={github}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="flex items-center gap-1 px-2 py-1 rounded bg-white/20 hover:bg-white/30 transition"
-      >
-        <span>GitHub:</span>
-        <span>{github.replace("https://", "")}</span>
-      </a>
-    )}
-
-    {portfolio && (
-      <a
-        href={portfolio}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="flex items-center gap-1 px-2 py-1 rounded bg-white/20 hover:bg-white/30 transition"
-      >
-        <span>Portfolio:</span>
-        <span>{portfolio.replace("https://", "")}</span>
-      </a>
-    )}
-
-  </div>
+{(linkedin || github || portfolio) && (
+<div className="text-[11px] mt-1 space-y-0.5">
+  {linkedin && <p>LinkedIn: {linkedin}</p>}
+  {github && <p>GitHub: {github}</p>}
+  {portfolio && <p>Portfolio: {portfolio}</p>}
+</div>
 )}
-
       {/* 🔥 TWO COLUMN LAYOUT */}
       {isTwoColumn ? (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -170,7 +155,7 @@ const formatList = (text, type = "") => {
 
             {summary && (
               <Section title="Summary">
-                <p dangerouslySetInnerHTML={{ __html: summary }} />
+                <p>{summary}</p>
               </Section>
             )}
 
@@ -190,21 +175,46 @@ const formatList = (text, type = "") => {
               </Section>
             )}
 
-{projects && (
+{Array.isArray(projects) && projects.length > 0 && (
   <Section title="Projects">
-    {formatList(projects, "project")}
+    {projects.map((proj, i) => (
+      <div key={i}>
+        {formatList(
+          typeof proj === "string"
+            ? proj
+            : `${proj.header}\n${proj.details}`,
+          "project"
+        )}
+      </div>
+    ))}
   </Section>
 )}
 
-{experience && (
+{Array.isArray(experience) && experience.length > 0 && (
   <Section title="Experience">
-    {formatList(experience, "experience")}
+    {experience.map((exp, i) => (
+      <div key={i}>
+        {formatList(
+          typeof exp === "string"
+            ? exp
+            : `${exp.header}\n${exp.details}`,
+          "experience"
+        )}
+      </div>
+    ))}
   </Section>
 )}
 
-{achievements && (
+{Array.isArray(achievements) && achievements.length > 0 && (
   <Section title="Achievements">
-    {formatList(achievements, "achievement")}
+    {achievements.map((ach, i) => (
+      <div key={i}>
+        {formatList(
+          typeof ach === "string" ? ach : ach.text,
+          "achievement"
+        )}
+      </div>
+    ))}
   </Section>
 )}
           </div>
@@ -215,7 +225,7 @@ const formatList = (text, type = "") => {
 
           {summary && (
             <Section title="Summary">
-              <p dangerouslySetInnerHTML={{ __html: summary }} />
+              <p>{summary}</p>
             </Section>
           )}
 
@@ -234,23 +244,48 @@ const formatList = (text, type = "") => {
               ))}
             </Section>
           )}
-{projects && (
+{Array.isArray(projects) && projects.length > 0 && (
   <Section title="Projects">
-    {formatList(projects, "project")}
+    {projects.map((proj, i) => (
+      <div key={i}>
+        {formatList(
+          typeof proj === "string"
+            ? proj
+            : `${proj.header}\n${proj.details}`,
+          "project"
+        )}
+      </div>
+    ))}
   </Section>
 )}
 
-{experience && (
+{Array.isArray(experience) && experience.length > 0 && (
   <Section title="Experience">
-    {formatList(experience, "experience")}
+    {experience.map((exp, i) => (
+      <div key={i}>
+        {formatList(
+          typeof exp === "string"
+            ? exp
+            : `${exp.header}\n${exp.details}`,
+          "experience"
+        )}
+      </div>
+    ))}
   </Section>
 )}
 
-          {achievements && (
-            <Section title="Achievements">
-              {formatList(achievements)}
-            </Section>
-          )}
+{Array.isArray(achievements) && achievements.length > 0 && (
+  <Section title="Achievements">
+    {achievements.map((ach, i) => (
+      <div key={i}>
+        {formatList(
+          typeof ach === "string" ? ach : ach.text,
+          "achievement"
+        )}
+      </div>
+    ))}
+  </Section>
+)}
         </>
       )}
     </div>

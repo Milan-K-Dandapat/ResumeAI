@@ -1,13 +1,15 @@
 import React, { useEffect } from "react";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
-
+import ResumeForFreshers from "../pages/ResumeForFreshers";
 import Landing from "../pages/Landing";
 import Login from "../pages/Login";
 import Signup from "../pages/Signup";
 import Dashboard from "../pages/Dashboard";
 import ResumeEditor from "../pages/ResumeEditor";
 import TemplateSelector from "../components/TemplateSelector"; 
-
+import ATSResumeBuilder from "../pages/ATSResumeBuilder";
+import ResumeForStudents from "../pages/ResumeForStudents";
+import AIResumeBuilder from "../pages/AIResumeBuilder";
 // Import New Sidebar Components
 import SkillAnalytics from "../pages/SkillAnalytics";
 import JobMatcher from "../pages/JobMatcher";
@@ -34,7 +36,10 @@ export default function AppRouter() {
       <Routes>
         {/* ==================== PUBLIC PORTALS ==================== */}
         <Route path="/" element={<Landing />} />
-        
+        <Route path="/ats-resume-builder" element={<ATSResumeBuilder />} />
+<Route path="/resume-builder-for-students" element={<ResumeForStudents />} />
+<Route path="/ai-resume-builder" element={<AIResumeBuilder />} />
+        <Route path="/resume-builder-for-freshers" element={<ResumeForFreshers />} />
         {/* Unified Google Auth Entry Points */}
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />

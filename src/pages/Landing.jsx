@@ -25,14 +25,48 @@ export default function Landing() {
         <Header />
         <Hero />
 
+        <div className="flex justify-center mt-6">
+  <button
+    onClick={() => navigate("/resume-builder-for-freshers")}
+    className="text-sm text-purple-400 underline hover:text-purple-300 transition"
+  >
+    Explore Resume Builder for Freshers →
+  </button>
+</div>
+
+        {/* 🔥 SEO HEADING (VERY IMPORTANT) */}
+<div className="text-center mt-10 px-4">
+  <h1 className="text-3xl md:text-5xl font-bold text-white leading-tight">
+    Free AI Resume Builder for Freshers (ATS Optimized)
+  </h1>
+
+  <p className="text-slate-400 mt-4 max-w-2xl mx-auto text-sm sm:text-base">
+    Create professional ATS-friendly resumes using AI. Perfect for students,
+    freshers, and software engineers in India.
+  </p>
+</div>
+
         {/* ==================== COMPANIES SECTION ==================== */}
+        {/* 🔥 SEO CONTENT BLOCK */}
+<section className="mt-20 max-w-4xl mx-auto text-center px-4">
+  <h2 className="text-2xl font-bold text-white mb-4">
+    Best Resume Builder for Freshers in India
+  </h2>
+
+  <p className="text-slate-400 text-sm sm:text-base leading-relaxed">
+    Resumepro is a free AI resume builder powered by melo which is designed to help freshers and students
+    create ATS-friendly resumes. Our smart AI improves your resume content,
+    removes repetition, and optimizes it for top companies like TCS, Infosys,
+    and startups.
+  </p>
+</section>
         <section id="companies" className="mt-32 border-t border-white/5 pt-16">
           <p className="text-center text-sm font-semibold uppercase tracking-widest text-slate-400 mb-8">
             Architectures Tailored For Top-Tier ATS Systems
           </p>
           <div className="flex flex-wrap justify-center gap-8 sm:gap-16 opacity-60 grayscale transition-all hover:grayscale-0">
             <h3 className="text-2xl font-black tracking-tighter text-white">Google</h3>
-            <h3 className="text-2xl font-black tracking-tighter text-white">amazon</h3>
+            <h3 className="text-2xl font-black tracking-tighter text-white">Amazon</h3>
             <h3 className="text-2xl font-bold tracking-widest text-blue-400">TCS</h3>
             <h3 className="text-2xl font-bold tracking-tight text-white">Infosys</h3>
             <h3 className="text-2xl font-black tracking-tighter text-green-500">Deloitte.</h3>
@@ -46,7 +80,7 @@ export default function Landing() {
               Not just a builder. <span className="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">An unfair advantage.</span>
             </h2>
             <p className="text-slate-400 max-w-2xl mx-auto text-sm sm:text-base leading-relaxed">
-              We stripped away the bloated backends to give you a lightning-fast, privacy-first editing experience tailored exactly to what recruiters want to see.
+              We built a fast, AI-powered resume builder that helps users create ATS-friendly resumes for freshers, students, and software engineers.
             </p>
           </div>
 

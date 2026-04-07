@@ -74,6 +74,22 @@ const [detectedDomain, setDetectedDomain] = useState("general");
 const [missingSkills, setMissingSkills] = useState([]);
 const [previewScan, setPreviewScan] = useState(false);
 
+// 🔥 GLOBAL SYNONYM MAP (MUST BE HERE)
+const synonymMap = {
+  specified: ["detailed", "outlined", "defined"],
+  used: ["leveraged", "applied"],
+  developed: ["engineered", "built", "created"],
+  engineered: ["developed", "implemented"],
+  implemented: ["executed", "applied"],
+  optimized: ["enhanced", "improved"],
+  designed: ["architected", "crafted", "structured"],
+  built: ["developed", "engineered"],
+  created: ["built", "designed"],
+  improved: ["enhanced", "boosted"],
+  worked: ["collaborated", "contributed"],
+  managed: ["led", "directed"]
+};
+
   const skillsList = (val) =>
     val
       .split(",")
@@ -142,12 +158,14 @@ const extractKeywords = (text) => {
   // ✅ single words extraction
   const words = cleanText.match(/\b[a-zA-Z+#.]{2,}\b/g) || [];
 
-  const stopWords = [
-    "the","and","for","with","you","are","this","that","from",
-    "have","has","will","your","our","their","job","role",
-    "work","team","good","looking","required","skills",
-    "experience","knowledge"
-  ];
+const stopWords = [
+  "the","and","for","with","you","are","this","that",
+  "have","has","will","your","our","their",
+  "team","work","good","skills","experience",
+  "looking","required","knowledge","ability",
+  "responsible","role","job","candidate",
+  "company","position","opportunity","using"
+];
 
   const filtered = words.filter(w => !stopWords.includes(w));
 
@@ -169,6 +187,108 @@ const extractKeywords = (text) => {
 
   return sorted.slice(0, 25);
 };
+
+const superFixResumeUniversal = (text) => {
+  if (!text) return text;
+
+  // 🔥 Strong verbs (domain independent)
+  const strongVerbs = {
+    "worked": "executed",
+    "used": "leveraged",
+    "made": "built",
+    "did": "performed",
+    "helped": "contributed to"
+  };
+
+  // 🔥 Generic phrases (remove for ALL domains)
+ const genericPhrases = [
+  "hardworking",
+  "team player",
+  "detail oriented",
+  "responsible for",
+  "results-driven",
+  "passionate",
+  "dynamic",
+  "self-motivated",
+
+  // 🔥 ADD THESE (IMPORTANT)
+  "proven ability",
+  "experienced in",
+  "ability to",
+  "responsible for"
+];
+
+  // 🔥 Metrics templates (domain neutral)
+  const metricsTemplates = [
+    "improving efficiency by 25%",
+    "increasing productivity by 30%",
+    "reducing processing time by 40%",
+    "handling large-scale operations",
+    "enhancing system performance"
+  ];
+
+  let output = text;
+
+  // ✅ 1. REMOVE PERSONAL PRONOUNS
+  output = output.replace(/\b(I|i|me|my|mine|we|our|us)\b/g, "");
+
+  // ✅ 2. REMOVE GENERIC PHRASES
+  genericPhrases.forEach(phrase => {
+    const regex = new RegExp(`\\b${phrase}\\b`, "gi");
+    output = output.replace(regex, "");
+  });
+
+  // ✅ 3. CONVERT PASSIVE → ACTIVE (generic)
+  output = output
+    .replace(/\bwas developed\b/gi, "developed")
+    .replace(/\bwas designed\b/gi, "designed")
+    .replace(/\bwas implemented\b/gi, "implemented")
+    .replace(/\bwas created\b/gi, "created");
+
+  // ✅ 4. STRONG VERB REPLACEMENT
+  Object.keys(strongVerbs).forEach(word => {
+    const regex = new RegExp(`\\b${word}\\b`, "gi");
+    output = output.replace(regex, strongVerbs[word]);
+  });
+
+  // ✅ 5. REMOVE EXTRA SPACES
+  output = output.replace(/\s+/g, " ").trim();
+
+  // ✅ 6. ADD METRICS ONLY IF NONE EXISTS
+  if (!/\d+%|\d+\+|\d+x/.test(output)) {
+    const metric =
+      metricsTemplates[Math.floor(Math.random() * metricsTemplates.length)];
+
+    if (!output.endsWith(".")) output += ".";
+    output = output.replace(/\.$/, `, ${metric}.`);
+  }
+
+  // ✅ 7. CAPITALIZE FIRST LETTER
+  output = output.charAt(0).toUpperCase() + output.slice(1);
+
+  return output;
+};
+// 🔥 FORMAT BULLET POINTS (GLOBAL - FIXED)
+const formatBulletPoints = (text) => {
+  if (!text) return "";
+
+  return text
+    .split("\n")
+    .map(line => line.trim())
+    .filter(Boolean)
+    .map(line => {
+      let clean = line.replace(/^[-•]\s*/, "");
+
+      clean = superFixResumeUniversal(clean); // 🔥 APPLY HERE ALSO
+
+      if (!clean.endsWith(".")) clean += ".";
+
+      return `• ${clean}`;
+    })
+    .join("\n");
+};
+// 🔥 GLOBAL WORD TRACKER (FIX)
+let globalWordFreq = {};
 
   // Redirect if logged out
   useEffect(() => {
@@ -393,7 +513,13 @@ useEffect(() => {
   const removeProject = (id) => setProjectList(projectList.filter(item => item.id !== id));
 
   const addAchievement = () => setAchievementList([...achievementList, { id: generateId(), text: "" }]);
-  const updateAchievement = (id, value) => setAchievementList(achievementList.map(item => item.id === id ? { ...item, text: value } : item));
+  const updateAchievement = (id, value) => {
+  setAchievementList(
+    achievementList.map(item =>
+      item.id === id ? { ...item, text: value } : item
+    )
+  );
+};
   const removeAchievement = (id) => setAchievementList(achievementList.filter(item => item.id !== id));
 
 
@@ -645,9 +771,11 @@ const animateProgress = async (target) => {
     }, 20);
   });
 };
+
   // AI Auto-Scan/ATS Handler with High-Impact Word Replacement
   // --- NEW AUTHENTIC AI SCAN LOGIC ---
 const handleAIScan = async () => {
+  globalWordFreq = {};
   setIsScanning(true);
   setPreviewScan(true);
   setScanProgress(0);
@@ -679,72 +807,430 @@ await new Promise(r => setTimeout(r, 400));
 
  // 🔥 STEP 4: FIX EXPERIENCE + GLOBAL REPETITION
 setScanStep("Optimizing content & removing repetition...");
-
-// 🔥 ADVANCED SYNONYM MAP
-const synonymMap = {
-  "developed": ["engineered", "built", "created"],
-  "implemented": ["executed", "applied", "deployed"],
-  "optimized": ["improved", "enhanced", "streamlined"],
-  "designed": ["crafted", "structured", "architected"],
-  "built": ["developed", "engineered"],
-  "created": ["built", "engineered"],
-  "improved": ["enhanced", "boosted"],
-  "led": ["managed", "guided"],
-  "worked": ["collaborated", "contributed"]
-};
+// ✅ SAFE COPY OF STATE (ADD HERE)
+const expList = [...experienceList];
+const projList = [...projectList];
 
 // 🔥 GLOBAL REPLACER
 const fixRepetitionGlobally = (text) => {
   if (!text) return text;
 
-  let globalFreq = {};
-  let words = text.split(/\b/);
+  const lines = text.split("\n");
+  const localFreq = {}; // ✅ reset per section
 
-  return words.map(w => {
-    const lower = w.toLowerCase();
+  return lines.map(line => {
+    return line.split(" ").map(word => {
+      let clean = word.toLowerCase().replace(/[.,]/g, "");
 
-    if (synonymMap[lower]) {
-      globalFreq[lower] = (globalFreq[lower] || 0) + 1;
+      if (clean.length < 4) return word; // ignore small words
 
-      if (globalFreq[lower] > 1) {
-        const options = synonymMap[lower];
-        return options[Math.floor(Math.random() * options.length)];
+      localFreq[clean] = (localFreq[clean] || 0) + 1;
+
+      // 🔥 IF WORD USED MORE THAN 2 TIMES → REPLACE
+      if (localFreq[clean] > 2 && synonymMap[clean]) {
+        const synonyms = synonymMap[clean];
+        return synonyms[Math.floor(Math.random() * synonyms.length)];
       }
-    }
 
-    return w;
-  }).join("");
+      return word;
+    }).join(" ");
+  }).join("\n");
 };
 
+const removeWordOveruse = (text) => {
+  if (!text) return text;
+
+  const words = text.split(/\s+/);
+  const freq = {};
+
+  return words.map(word => {
+    const clean = word.toLowerCase().replace(/[.,]/g, "");
+
+    if (clean.length < 4) return word;
+
+    freq[clean] = (freq[clean] || 0) + 1;
+
+    if (freq[clean] > 3) {
+      return ""; // ❌ REMOVE repeated word
+    }
+
+    return word;
+  }).join(" ");
+};
+// 🔥 REAL GRAMMAR FIX (API)
+const fixGrammarWithAPI = async (text) => {
+  if (!text) return text;
+
+  try {
+    const res = await fetch("https://api.languagetool.org/v2/check", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        text,
+        language: "en-US",
+      }),
+    });
+
+    const data = await res.json();
+
+    let correctedText = text;
+
+    // 🔥 FIX: reverse order to avoid offset issues
+    data.matches
+      .sort((a, b) => b.offset - a.offset)
+      .forEach(match => {
+        if (match.replacements.length > 0) {
+          const replacement = match.replacements[0].value;
+
+          correctedText =
+            correctedText.slice(0, match.offset) +
+            replacement +
+            correctedText.slice(match.offset + match.length);
+        }
+      });
+
+    return correctedText;
+
+  } catch (err) {
+    console.error("Grammar API error:", err);
+    return text;
+  }
+};
+const forceGrammarClean = (text) => {
+  if (!text) return text;
+
+  return text
+    // Fix lowercase i
+    .replace(/\bi\b/g, "I")
+
+    // Fix spacing
+    .replace(/\s+/g, " ")
+
+    // Fix double punctuation
+    .replace(/\.{2,}/g, ".")
+
+    // Ensure sentence ends with .
+    .replace(/([a-z])\n/g, "$1.\n")
+
+    // Capitalize sentence start
+    .replace(/(^\w|\.\s+\w)/g, (c) => c.toUpperCase())
+
+    // Fix common words
+    .replace(/\bjs\b/gi, "JavaScript")
+    .replace(/\breactjs\b/gi, "React")
+    .replace(/\bnodejs\b/gi, "Node.js")
+
+    .trim();
+};
+
+const fixUniversalGrammar = (text) => {
+  if (!text) return text;
+
+  // ✅ COMMON SPELLING FIXES (ALL DOMAINS)
+  const corrections = {
+    // tech
+    "tenserflow": "TensorFlow",
+    "pyhton": "Python",
+    "javscript": "JavaScript",
+    "reactjs": "React",
+    "nodejs": "Node.js",
+    "rest api": "REST API",
+
+    // general resume words
+    "managment": "management",
+    "developement": "development",
+    "enviroment": "environment",
+    "responsiblity": "responsibility",
+    "achivement": "achievement",
+    "experiance": "experience",
+
+    // tools
+    "postman": "Postman",
+    "excel": "Excel",
+    "power bi": "Power BI",
+
+    // common mistakes
+    "i ": "I ",
+    "  ": " "
+  };
+
+  let corrected = text;
+
+  // 🔥 APPLY DICTIONARY
+  Object.keys(corrections).forEach((wrong) => {
+    const regex = new RegExp(`\\b${wrong}\\b`, "gi");
+    corrected = corrected.replace(regex, corrections[wrong]);
+  });
+
+  // ✅ SENTENCE FIXES (UNIVERSAL)
+  corrected = corrected
+    .replace(/\s+/g, " ")
+    .replace(/\.{2,}/g, ".")
+    .replace(/(^\w|\.\s+\w)/g, (c) => c.toUpperCase())
+    .replace(/\bi\b/g, "I");
+
+  // ✅ REMOVE "I" FROM BULLETS (ATS BEST PRACTICE)
+  corrected = corrected.replace(/(^|\n)[•-]?\s*I\s+/g, "$1");
+
+  return corrected.trim();
+};
+const makeFullSentences = (text) => {
+  if (!text) return text;
+
+  return text
+    .split("\n")
+    .map(line => {
+      let clean = line.replace(/^[-•]\s*/, "").trim();
+
+      if (!clean) return "";
+
+      // 🔥 ADD SUBJECT IF MISSING
+    const actionVerbs = [
+  "Engineered","Developed","Built","Implemented",
+  "Optimized","Designed","Led","Created"
+];
+
+if (!/^(Engineered|Developed|Built|Implemented|Optimized|Designed|Led|Created)/i.test(clean)) {
+  clean = actionVerbs[Math.floor(Math.random()*actionVerbs.length)] + " " + clean;
+}
+
+      // 🔥 CAPITALIZE
+      clean = clean.charAt(0).toUpperCase() + clean.slice(1);
+
+      // 🔥 ENSURE PERIOD
+      if (!clean.endsWith(".")) clean += ".";
+
+      return clean;
+    })
+    .join("\n");
+};
+const enhanceImpact = (text) => {
+  if (!text) return text;
+
+  return addMetricsIfMissing(
+    text
+      .replace(/developed/gi, "engineered")
+      .replace(/worked on/gi, "developed")
+      .replace(/used/gi, "leveraged")
+  );
+};
+
+const addMetricsIfMissing = (text) => {
+  if (!text) return text;
+
+  // ✅ If already has ANY metric → DO NOT ADD AGAIN
+  if (/\d+%|\d+\+|\d+x|\d+ users|\d+ ms|\d+ projects|\$\d+|\₹\d+/i.test(text)) {
+    return text;
+  }
+
+  // 🔥 VARIETY METRICS (NO REPEAT)
+  const metrics = [
+    "increasing performance by 35%",
+    "reducing load time by 40%",
+    "handling 1000+ users",
+    "processing 5000+ records",
+    "improving efficiency by 25%",
+    "delivering 3+ production-ready projects",
+    "reducing API response time by 120ms"
+  ];
+
+  // ✅ RANDOM PICK
+  const randomMetric = metrics[Math.floor(Math.random() * metrics.length)];
+
+  if (!text.endsWith(".")) text += ".";
+
+  return text.replace(/\.$/, `, ${randomMetric}.`);
+};
+
+const enhanceAchievement = (text) => {
+  if (!text) return text;
+
+  let output = text;
+
+  // 🔥 Convert generic → strong
+  output = output
+    .replace(/won/gi, "Achieved")
+    .replace(/participated/gi, "Competed")
+    .replace(/built/gi, "Developed")
+    .replace(/made/gi, "Engineered");
+
+  // 🔥 Add metrics if missing
+  if (!/\d+/.test(output)) {
+    const metrics = [
+      "outperforming 50+ participants",
+      "ranked among top 10 teams",
+      "selected from 100+ applicants",
+      "recognized for high-impact solution"
+    ];
+
+    const metric = metrics[Math.floor(Math.random() * metrics.length)];
+
+    if (!output.endsWith(".")) output += ".";
+    output = output.replace(/\.$/, `, ${metric}.`);
+  }
+
+  // ✅ Capitalize
+  output = output.charAt(0).toUpperCase() + output.slice(1);
+
+  return output;
+};
+const fixPassiveVoice = (text) => {
+  if (!text) return text;
+
+  return text
+    .replace(/was responsible for/gi, "managed")
+    .replace(/was involved in/gi, "contributed to")
+    .replace(/worked on/gi, "developed")
+    .replace(/\bdid\b/gi, "executed");
+};
+// 🔥 BONUS: REMOVE DUPLICATE LINES (ADD HERE EXACTLY)
+const removeDuplicateLines = (text) => {
+  if (!text) return text;
+
+  const seen = new Set();
+
+  return text
+    .split("\n")
+    .map(l => l.trim())
+    .filter(line => {
+      const clean = line.toLowerCase();
+
+      // ❌ REMOVE REPEATED METRIC LINES
+      if (clean.includes("improving performance")) return false;
+
+      if (seen.has(clean)) return false;
+      seen.add(clean);
+      return true;
+    })
+    .join("\n");
+};
+const enforceStrongVariety = (text) => {
+  if (!text) return text;
+
+  const lines = text.split("\n");
+
+  return lines.map(line => {
+    const words = line.split(" ");
+    const used = new Set();
+
+    return words.map(w => {
+      const clean = w.toLowerCase().replace(/[.,]/g, "");
+
+      if (used.has(clean)) {
+        if (synonymMap && synonymMap[clean]) {
+          return synonymMap[clean][0];
+        }
+      }
+
+      used.add(clean);
+      return w;
+    }).join(" ");
+  }).join("\n");
+};
+// 🔥 FORMAT BULLET POINTS (ADD THIS BELOW)
+
 // ✅ FIX SUMMARY
-setSummary(prev => fixRepetitionGlobally(prev));
 
-// ✅ FIX EXPERIENCE
-setExperienceList(prev =>
-  prev.map(item => ({
-    ...item,
-    details: fixRepetitionGlobally(item.details)
-  }))
-);
+// 🔥 PERFORMANCE FIX (ONE API CALL INSTEAD OF MANY)
 
-// ✅ FIX PROJECTS
-setProjectList(prev =>
-  prev.map(item => ({
-    ...item,
-    details: fixRepetitionGlobally(item.details)
-  }))
+// ✅ SAFE SECTION-WISE PROCESSING (NO DATA LOSS)
+
+// 🔹 SUMMARY
+let optimizedSummary = fixRepetitionGlobally(summary);
+optimizedSummary = await fixGrammarWithAPI(optimizedSummary);
+optimizedSummary = forceGrammarClean(optimizedSummary);
+optimizedSummary = fixUniversalGrammar(optimizedSummary);
+optimizedSummary = optimizedSummary.replace(/\bi\b/g, "I");
+
+optimizedSummary = enhanceImpact(optimizedSummary);
+optimizedSummary = fixPassiveVoice(optimizedSummary);
+
+optimizedSummary = removeWordOveruse(optimizedSummary);
+setSummary(superFixResumeUniversal(optimizedSummary));
+
+
+// 🔹 EXPERIENCE
+const updatedExperience = await Promise.all(
+  expList.map(async (item) => {
+    let text = item.details;
+
+    text = fixRepetitionGlobally(text);
+    text = forceGrammarClean(text); // ✅ ADD THIS
+    text = fixUniversalGrammar(text);
+    text = text.replace(/\bi\b/g, "I");
+    text = enhanceImpact(text);
+text = superFixResumeUniversal(text);
+    text = addMetricsIfMissing(text);
+    text = fixPassiveVoice(text); 
+    text = removeDuplicateLines(text);
+    text = enforceStrongVariety(text);
+text = makeFullSentences(text); // ✅ ADD THIS
+text = formatBulletPoints(text);
+text = removeWordOveruse(text);
+
+    return {
+      ...item,
+      details: text
+    };
+  })
 );
+setExperienceList(updatedExperience);
+
+// 🔹 PROJECTS
+const updatedProjects = await Promise.all(
+  projList.map(async (item) => {
+    let text = item.details;
+
+    text = fixRepetitionGlobally(text);
+    text = forceGrammarClean(text);
+    text = fixUniversalGrammar(text);
+    text = text.replace(/\bi\b/g, "I");
+    text = enhanceImpact(text);
+text = superFixResumeUniversal(text);
+    text = addMetricsIfMissing(text);
+    text = fixPassiveVoice(text); 
+    text = enforceStrongVariety(text);
+text = makeFullSentences(text);
+text = formatBulletPoints(text);
+text = removeWordOveruse(text);
+
+    return {
+      ...item,
+      details: text
+    };
+  })
+);
+setProjectList(updatedProjects);
 
   await animateProgress(80);
   await new Promise(r => setTimeout(r, 500));
 
+  // 🔥 FIX ACHIEVEMENTS (REMOVE GENERIC)
+const updatedAchievements = achievementList.map(item => {
+  let text = item.text;
+
+  text = enhanceAchievement(text); // ✅ BETTER
+  text = fixUniversalGrammar(text);
+  text = fixPassiveVoice(text);
+
+  return { ...item, text };
+});
+
+setAchievementList(updatedAchievements);
   // 🔥 STEP 5: ADD SKILLS (REAL ATS BOOST)
   setScanStep("Adding missing skills...");
+  // 🔥 AUTO ADD TOP MISSING SKILLS TO SKILL SECTION
+if (missing.length > 0) {
+  const topSkills = missing.slice(0, 5).join(", ");
 
-  if (missing.length > 0) {
-    const newSkills = missing.slice(0, 5).join(", ");
-    setSkillWeb(prev => prev ? prev + ", " + newSkills : newSkills);
-  }
+  setSkillOther(prev => {
+    const existing = prev ? prev + ", " : "";
+    return existing + topSkills;
+  });
+}
+
 
   // 🔥 STEP 6: FINAL SCORE
   setScanStep("Final ATS scoring...");
@@ -762,23 +1248,12 @@ setProjectList(prev =>
   // 🔥 FULL AI REWRITE (FINAL STEP)
 setScanStep("Rewriting entire resume...");
 
-const newSummary = `Results-driven ${headline || "professional"} with expertise in ${jdKeywords.slice(0,5).join(", ")}.
-Proven ability to deliver scalable, high-performance solutions and improve system performance effectively.`;
+const newSummary = `
+Engineered scalable solutions in ${detectedDomain} domain, solving real-world problems and improving system performance.
 
-setSummary(fixRepetitionGlobally(newSummary));
-
-// 🔥 BOOST EXPERIENCE
-setExperienceList(prev =>
-  prev.map(item => {
-    if (!item.details.includes("Delivered measurable impact")) {
-      return {
-        ...item,
-        details: item.details + "\n• Delivered measurable impact in real-world scenarios"
-      };
-    }
-    return item;
-  })
-);
+Delivered high-impact results by optimizing processes, building efficient applications, and enhancing user experience.
+`;
+setSummary(superFixResumeUniversal(fixRepetitionGlobally(newSummary)));
 
   setSaveStatus("ATS Optimized ✓");
 };
@@ -813,20 +1288,40 @@ setAtsScore(realScore);
   if (fullName) score += 2;
 
   // ✅ KEYWORD MATCH (REAL ATS) → 40%
-  const jdKeywords = extractKeywords(jobDescription);
-  let matchCount = 0;
+const jdKeywords = extractKeywords(jobDescription);
 
-  jdKeywords.forEach(word => {
-    const regex = new RegExp(`\\b${word}\\b`, "i");
-    if (regex.test(text)) matchCount++;
-  });
+const priorityKeywords = [
+  "react","node","mongodb","aws","docker","api",
+  "javascript","typescript","sql","python"
+];
 
-  if (jdKeywords.length > 0) {
-    score += (matchCount / jdKeywords.length) * 40;
-  } else {
-    // ⚠️ IF NO JD → DON'T PENALIZE
-    score += 25;
+let weightedMatch = 0;
+let totalWeight = 0;
+
+jdKeywords.forEach(word => {
+  const weight = priorityKeywords.includes(word) ? 2 : 1;
+  totalWeight += weight;
+
+  const regex = new RegExp(`\\b${word}\\b`, "i");
+  if (regex.test(text)) {
+    weightedMatch += weight;
   }
+});
+
+if (jdKeywords.length > 0) {
+  score += (weightedMatch / totalWeight) * 40;
+} else {
+  score += 25;
+}
+
+// ✅ CONTEXT MATCH (ADD HERE EXACTLY)
+let contextScore = 0;
+
+if (summary.toLowerCase().includes("react")) contextScore += 2;
+if (skillWeb.toLowerCase().includes("react")) contextScore += 3;
+if (experienceList.some(e => e.details.toLowerCase().includes("react"))) contextScore += 5;
+
+score += Math.min(10, contextScore);
 
   // ✅ SKILLS STRENGTH (15%)
   const totalSkills = `${skillWeb} ${skillDb} ${skillProgramming} ${skillTools}`.split(",").length;
@@ -844,14 +1339,15 @@ setAtsScore(realScore);
   if (metrics.length >= 2) score += 15;
   else if (metrics.length === 1) score += 8;
 
-  // ✅ STRUCTURE (10%) — NO PENALTY IF MISSING EXPERIENCE
-  let structure = 0;
-  if (summary) structure += 3;
-  if (educationList.length) structure += 3;
-  if (skillWeb || skillDb || skillProgramming) structure += 2;
-  if (experienceList.length || projectList.length) structure += 2;
+ // ✅ SECTION DEPTH (REAL ATS)
+let sectionBonus = 0;
 
-  score += structure;
+if (experienceList.length >= 2) sectionBonus += 3;
+if (projectList.length >= 2) sectionBonus += 3;
+if ((skillWeb + skillDb + skillProgramming).length > 30) sectionBonus += 2;
+if (educationList.length >= 1) sectionBonus += 2;
+
+score += sectionBonus;
 
   // ✅ REPETITION PENALTY (SMART)
   const words = text.split(/\s+/);
@@ -867,6 +1363,23 @@ if (freq[w] > 6) penalty += 0.7;
 
   score -= Math.min(12, penalty);
 
+  // ✅ JOB TITLE MATCH (ADD HERE)
+const jobTitleWords = jobDescription.toLowerCase().split(" ");
+
+let titleMatch = 0;
+
+jobTitleWords.forEach(word => {
+  if (headline.toLowerCase().includes(word)) {
+    titleMatch++;
+  }
+});
+
+score += Math.min(10, titleMatch * 2);
+
+// ❌ KEYWORD STUFFING PENALTY (ADD HERE)
+if (jdKeywords.length > 0 && weightedMatch > totalWeight * 0.9) {
+  score -= 5;
+}
   return Math.max(35, Math.min(100, Math.round(score)));
 };
 // 🟢 JOB MATCHING FUNCTION
@@ -1739,20 +2252,9 @@ section div {
   return `${e.degree} - ${e.name} (${e.year})${scoreText ? ` | ${scoreText}` : ""}`;
 }).join("\n"),
 
-      experience: experienceList.map(
-  (e) =>
-    `${e.header}\n${e.details || ""}`
-).join("\n\n"),
-
-projects: projectList.map(
-  (p) =>
-    `${p.header}\n${p.details
-      .split("\n")
-      .map(line => line.trim() ? line.replace(/^[-•]\s*/, "") : "")
-      .join("\n")}`
-).join("\n\n"),
-
-      achievements: achievementList.map(a => a.text).join("\n"),
+experience: experienceList,
+projects: projectList,
+achievements: achievementList,
       
       skillWeb,
       skillDb,
