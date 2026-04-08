@@ -11,6 +11,7 @@ import ATSResumeBuilder from "../pages/ATSResumeBuilder";
 import ResumeForStudents from "../pages/ResumeForStudents";
 import AIResumeBuilder from "../pages/AIResumeBuilder";
 // Import New Sidebar Components
+import MyResumes from "../pages/MyResumes";
 import SkillAnalytics from "../pages/SkillAnalytics";
 import JobMatcher from "../pages/JobMatcher";
 import AccountSettings from "../pages/AccountSettings";
@@ -37,8 +38,8 @@ export default function AppRouter() {
         {/* ==================== PUBLIC PORTALS ==================== */}
         <Route path="/" element={<Landing />} />
         <Route path="/ats-resume-builder" element={<ATSResumeBuilder />} />
-<Route path="/resume-builder-for-students" element={<ResumeForStudents />} />
-<Route path="/ai-resume-builder" element={<AIResumeBuilder />} />
+        <Route path="/resume-builder-for-students" element={<ResumeForStudents />} />
+        <Route path="/ai-resume-builder" element={<AIResumeBuilder />} />
         <Route path="/resume-builder-for-freshers" element={<ResumeForFreshers />} />
         {/* Unified Google Auth Entry Points */}
         <Route path="/login" element={<Login />} />
@@ -51,6 +52,7 @@ export default function AppRouter() {
         <Route path="/dashboard" element={<Dashboard />} />
         
         {/* New Sidebar Navigation Routes */}
+        <Route path="/my-resumes" element={<MyResumes />} />
         <Route path="/analytics" element={<SkillAnalytics />} />
         <Route path="/job-matcher" element={<JobMatcher />} />
         <Route path="/settings" element={<AccountSettings />} />

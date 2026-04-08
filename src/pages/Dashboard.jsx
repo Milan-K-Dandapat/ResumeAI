@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 // Import Firestore functions and your db instance
 import { db } from "../services/firebase"; // ⚠️ Update this path to where your firebase config is exported
@@ -12,6 +12,7 @@ import {
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, logout } = useAuth(); // Real Firebase Auth Context
 
   const [resumes, setResumes] = useState([]);
@@ -97,13 +98,13 @@ export default function Dashboard() {
     });
   };
 
-  // Sidebar Menu Items
+  // Sidebar Menu Items with Paths
   const menuItems = [
-    { icon: <FiHome />, label: "Dashboard", active: true },
-    { icon: <FiFileText />, label: "My Resumes", active: false },
-    { icon: <FiBarChart2 />, label: "Skill Analytics", active: false },
-    { icon: <FiBriefcase />, label: "Job Matcher", active: false },
-    { icon: <FiSettings />, label: "Account Settings", active: false },
+    { icon: <FiHome />, label: "Dashboard", path: "/dashboard" },
+    { icon: <FiFileText />, label: "My Resumes", path: "/my-resumes" },
+    { icon: <FiBarChart2 />, label: "Skill Analytics", path: "/analytics" },
+    { icon: <FiBriefcase />, label: "Job Matcher", path: "/job-matcher" },
+    { icon: <FiSettings />, label: "Account Settings", path: "/settings" },
   ];
 
   return (
@@ -122,17 +123,21 @@ export default function Dashboard() {
 
           {/* Navigation Links */}
           <nav className="flex-1 space-y-2">
-            {menuItems.map((item, idx) => (
-              <button
-                key={idx}
-                className={`w-full flex items-center gap-4 px-4 py-3 rounded-2xl transition-all duration-200 group ${item.active ? "bg-gradient-to-r from-blue-600/20 to-purple-600/20 text-purple-400 border border-purple-500/20" : "text-slate-400 hover:bg-white/5 hover:text-slate-200"}`}
-              >
-                <span className={`${item.active ? "text-purple-400" : "group-hover:scale-110 transition-transform"}`}>
-                  {item.icon}
-                </span>
-                <span className="text-sm font-semibold">{item.label}</span>
-              </button>
-            ))}
+            {menuItems.map((item, idx) => {
+              const isActive = location.pathname === item.path;
+              return (
+                <Link
+                  key={idx}
+                  to={item.path}
+                  className={`w-full flex items-center gap-4 px-4 py-3 rounded-2xl transition-all duration-200 group ${isActive ? "bg-gradient-to-r from-blue-600/20 to-purple-600/20 text-purple-400 border border-purple-500/20" : "text-slate-400 hover:bg-white/5 hover:text-slate-200"}`}
+                >
+                  <span className={`${isActive ? "text-purple-400" : "group-hover:scale-110 transition-transform"}`}>
+                    {item.icon}
+                  </span>
+                  <span className="text-sm font-semibold">{item.label}</span>
+                </Link>
+              );
+            })}
           </nav>
 
           {/* User Profile Summary */}
