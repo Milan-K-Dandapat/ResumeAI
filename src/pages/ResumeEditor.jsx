@@ -11,6 +11,7 @@ import { DOMAIN_CONFIG } from "../utils/atsEngine";
 import { getTemplateComponent } from "../core/templateRegistry";
 import { Document, Packer, Paragraph } from "docx";
 import { saveAs } from "file-saver";
+import { generateWithAI } from "../utils/aiService";
 import {
   TextRun,
   AlignmentType,
@@ -21,6 +22,15 @@ export default function ResumeEditor() {
   const { resumeId } = useParams();
   const { user } = useAuth();
   const resumeRef = useRef(null);
+  const debounceRef = useRef(null);
+
+const handleLiveGrammar = (text) => {
+  clearTimeout(debounceRef.current);
+
+  debounceRef.current = setTimeout(() => {
+    checkGrammarLive(text);
+  }, 600);
+};
 
   const [id, setId] = useState(resumeId);
   const [title, setTitle] = useState("Untitled Resume");
@@ -43,6 +53,7 @@ export default function ResumeEditor() {
 
   // Main content
   const [summary, setSummary] = useState("");
+  const [grammarIssues, setGrammarIssues] = useState([]);
 
   // 🟢 DYNAMIC ARRAY STATES (Replaced static fields)
   const [educationList, setEducationList] = useState([]);
@@ -73,6 +84,8 @@ const [scanProgress, setScanProgress] = useState(0);
 const [detectedDomain, setDetectedDomain] = useState("general");
 const [missingSkills, setMissingSkills] = useState([]);
 const [previewScan, setPreviewScan] = useState(false);
+// 🔥 AI CONTROL (SAFE MODE)
+const [useAI, setUseAI] = useState(false);// toggle AI ON/OFF
 
 // 🔥 GLOBAL SYNONYM MAP (MUST BE HERE)
 const synonymMap = {
@@ -88,6 +101,62 @@ const synonymMap = {
   improved: ["enhanced", "boosted"],
   worked: ["collaborated", "contributed"],
   managed: ["led", "directed"]
+};
+// 🔥 NEW: SINGLE AI CALL FUNCTION (ADD HERE ONLY)
+const generateFullResumeAI = async () => {
+  if (!useAI) return null;
+
+  const prompt = `
+You are an ATS resume optimizer.
+
+Improve the following resume content professionally.
+
+RULES:
+- Use strong action verbs
+- Add measurable impact
+- Avoid repetition
+- Keep bullet points clean
+- Make it ATS-friendly
+- DO NOT add fake experience
+- Return JSON ONLY
+
+FORMAT:
+{
+  "summary": "...",
+  "experience": ["...", "..."],
+  "projects": ["...", "..."]
+}
+
+DATA:
+
+SUMMARY:
+${summary}
+
+EXPERIENCE:
+${experienceList.map(e => e.details).join("\n")}
+
+PROJECTS:
+${projectList.map(p => p.details).join("\n")}
+`;
+
+  try {
+    const res = await generateWithAI(prompt);
+
+if (!res) return null; // 🔥 CRITICAL FIX
+
+const jsonStart = res.indexOf("{");
+    const jsonEnd = res.lastIndexOf("}");
+
+    if (jsonStart === -1 || jsonEnd === -1) return null;
+
+    const cleanJSON = res.slice(jsonStart, jsonEnd + 1);
+
+    return JSON.parse(cleanJSON);
+
+  } catch (err) {
+    console.error("AI Parse Error:", err);
+    return null;
+  }
 };
 
   const skillsList = (val) =>
@@ -279,7 +348,7 @@ const formatBulletPoints = (text) => {
     .map(line => {
       let clean = line.replace(/^[-•]\s*/, "");
 
-      clean = superFixResumeUniversal(clean); // 🔥 APPLY HERE ALSO
+      clean = clean.trim(); // ✅ DO NOT reprocess here
 
       if (!clean.endsWith(".")) clean += ".";
 
@@ -287,6 +356,8 @@ const formatBulletPoints = (text) => {
     })
     .join("\n");
 };
+// 🔥 GEMINI AI CALL (SAFE - NO BREAK)
+
 // 🔥 GLOBAL WORD TRACKER (FIX)
 let globalWordFreq = {};
 
@@ -294,6 +365,13 @@ let globalWordFreq = {};
   useEffect(() => {
     if (!user) navigate("/login");
   }, [user, navigate]);
+  useEffect(() => {
+  return () => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+  };
+}, []);
 
   // 💾 1. INITIALIZE FIRESTORE DOCUMENT ID
   useEffect(() => {
@@ -771,10 +849,117 @@ const animateProgress = async (target) => {
     }, 20);
   });
 };
+const atsStrictMode = (text) => {
+  if (!text) return text;
 
+  return text
+    // ✅ Fix articles (basic)
+    .replace(/\b(a)\s+([aeiou])/gi, "an $2")
+
+    // ✅ Remove weak phrases
+    .replace(/\bvery\b/gi, "")
+    .replace(/\breally\b/gi, "")
+
+    // ✅ Fix commas before "and"
+    .replace(/,\s*and\s+/gi, " and ")
+
+    // ✅ Ensure spacing
+    .replace(/\s+/g, " ")
+
+    // ✅ Fix double words
+    .replace(/\b(\w+)\s+\1\b/gi, "$1")
+
+    // ✅ Capitalization
+    .replace(/(^\w|\.\s+\w)/g, c => c.toUpperCase())
+
+    // ✅ Trim
+    .trim();
+};
+const checkGrammarLive = async (text) => {
+  const highlightGrammar = (text) => {
+  if (!grammarIssues.length) return text;
+
+  let result = "";
+  let lastIndex = 0;
+
+  grammarIssues
+    .sort((a, b) => a.offset - b.offset)
+    .forEach((issue) => {
+      const start = issue.offset;
+      const end = start + issue.length;
+
+      result += text.slice(lastIndex, start);
+
+      result += `<span class="bg-red-500/30 underline decoration-red-500">${text.slice(start, end)}</span>`;
+
+      lastIndex = end;
+    });
+
+  result += text.slice(lastIndex);
+
+  return result;
+};
+  if (!text || text.length < 10) {
+    setGrammarIssues([]);
+    return;
+  }
+
+  try {
+    const res = await fetch("https://api.languagetool.org/v2/check", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        text,
+        language: "en-US",
+      }),
+    });
+
+    const data = await res.json();
+
+    setGrammarIssues(data.matches || []);
+  } catch (err) {
+    console.error("Live grammar error:", err);
+  }
+};
+
+const highlightGrammar = (text) => {
+  if (!grammarIssues.length) return text;
+
+  let result = "";
+  let lastIndex = 0;
+
+  grammarIssues
+    .sort((a, b) => a.offset - b.offset)
+    .forEach((issue) => {
+      const start = issue.offset;
+      const end = start + issue.length;
+
+      result += text.slice(lastIndex, start);
+
+      result += `<span class="bg-red-500/30 underline decoration-red-500">${text.slice(start, end)}</span>`;
+
+      lastIndex = end;
+    });
+
+  result += text.slice(lastIndex);
+
+  return result;
+};
   // AI Auto-Scan/ATS Handler with High-Impact Word Replacement
   // --- NEW AUTHENTIC AI SCAN LOGIC ---
 const handleAIScan = async () => {
+  // 🔥 ADD THIS HERE (TOP OF FUNCTION)
+let aiData = null;
+
+if (useAI) {
+  aiData = await generateFullResumeAI();
+}
+
+const aiSummary = aiData?.summary || null;
+const aiExp = aiData?.experience || [];
+const aiProj = aiData?.projects || [];
   globalWordFreq = {};
   setIsScanning(true);
   setPreviewScan(true);
@@ -1137,38 +1322,70 @@ const enforceStrongVariety = (text) => {
 
 // ✅ SAFE SECTION-WISE PROCESSING (NO DATA LOSS)
 
-// 🔹 SUMMARY
-let optimizedSummary = fixRepetitionGlobally(summary);
-optimizedSummary = await fixGrammarWithAPI(optimizedSummary);
-optimizedSummary = forceGrammarClean(optimizedSummary);
-optimizedSummary = fixUniversalGrammar(optimizedSummary);
-optimizedSummary = optimizedSummary.replace(/\bi\b/g, "I");
+let optimizedSummary = summary;
 
+// 🔥 Only use AI if available
+if (useAI && aiSummary) {
+  optimizedSummary = aiSummary;
+}
+
+// 🔧 Apply fixes ONCE
+optimizedSummary = fixUniversalGrammar(optimizedSummary);
 optimizedSummary = enhanceImpact(optimizedSummary);
 optimizedSummary = fixPassiveVoice(optimizedSummary);
-
 optimizedSummary = removeWordOveruse(optimizedSummary);
-setSummary(superFixResumeUniversal(optimizedSummary));
+if (useAI) {
+  const aiRes = await generateWithAI(`
+Fix grammar, improve clarity, and make it ATS optimized.
 
+Text:
+${optimizedSummary}
+  `);
+
+  if (aiRes) optimizedSummary = aiRes;
+}
+optimizedSummary = forceGrammarClean(optimizedSummary);
+optimizedSummary = atsStrictMode(optimizedSummary);
+// ✅ ONLY ONE FINAL CALL
+setSummary(superFixResumeUniversal(optimizedSummary));
 
 // 🔹 EXPERIENCE
 const updatedExperience = await Promise.all(
-  expList.map(async (item) => {
-    let text = item.details;
+  expList.map(async (item, index) => {
+    let text = aiExp[index] || item.details;
 
     text = fixRepetitionGlobally(text);
-    text = forceGrammarClean(text); // ✅ ADD THIS
+
+    if (aiExp[index]) {
+      text = aiExp[index];
+    }
+
+    text = forceGrammarClean(text);
     text = fixUniversalGrammar(text);
-    text = text.replace(/\bi\b/g, "I");
     text = enhanceImpact(text);
-text = superFixResumeUniversal(text);
-    text = addMetricsIfMissing(text);
-    text = fixPassiveVoice(text); 
+    text = fixPassiveVoice(text);
     text = removeDuplicateLines(text);
     text = enforceStrongVariety(text);
-text = makeFullSentences(text); // ✅ ADD THIS
-text = formatBulletPoints(text);
-text = removeWordOveruse(text);
+    text = makeFullSentences(text);
+    text = formatBulletPoints(text);
+    text = removeWordOveruse(text);
+
+// 🔥 FINAL GRAMMAR PASS (ADD THIS)
+if (useAI) {
+  const aiRes = await generateWithAI(`
+Fix grammar, punctuation, and ATS tone professionally.
+Keep it concise, use strong action verbs.
+
+Text:
+${text}
+  `);
+
+  if (aiRes) text = aiRes;
+}
+text = forceGrammarClean(text);
+text = atsStrictMode(text);
+
+text = superFixResumeUniversal(text);
 
     return {
       ...item,
@@ -1180,21 +1397,40 @@ setExperienceList(updatedExperience);
 
 // 🔹 PROJECTS
 const updatedProjects = await Promise.all(
-  projList.map(async (item) => {
-    let text = item.details;
+  projList.map(async (item, index) => {
+    let text = aiProj[index] || item.details;
 
     text = fixRepetitionGlobally(text);
+
+    if (aiProj[index]) {
+      text = aiProj[index];
+    }
+
     text = forceGrammarClean(text);
     text = fixUniversalGrammar(text);
-    text = text.replace(/\bi\b/g, "I");
     text = enhanceImpact(text);
-text = superFixResumeUniversal(text);
-    text = addMetricsIfMissing(text);
-    text = fixPassiveVoice(text); 
+    text = fixPassiveVoice(text);
     text = enforceStrongVariety(text);
-text = makeFullSentences(text);
-text = formatBulletPoints(text);
-text = removeWordOveruse(text);
+    text = makeFullSentences(text);
+    text = formatBulletPoints(text);
+   text = removeWordOveruse(text);
+
+// 🔥 FINAL GRAMMAR PASS
+if (useAI) {
+  const aiRes = await generateWithAI(`
+Fix grammar, punctuation, and ATS tone professionally.
+Keep it concise, use strong action verbs.
+
+Text:
+${text}
+  `);
+
+  if (aiRes) text = aiRes;
+}
+text = forceGrammarClean(text);
+text = atsStrictMode(text);
+
+text = superFixResumeUniversal(text);
 
     return {
       ...item,
@@ -1241,19 +1477,13 @@ if (missing.length > 0) {
 
   await animateProgress(100);
   await new Promise(r => setTimeout(r, 400));
+  // 🔥 SINGLE AI CALL (ADD HERE)
 
   setPreviewScan(false);
   setIsScanning(false);
 
   // 🔥 FULL AI REWRITE (FINAL STEP)
 setScanStep("Rewriting entire resume...");
-
-const newSummary = `
-Engineered scalable solutions in ${detectedDomain} domain, solving real-world problems and improving system performance.
-
-Delivered high-impact results by optimizing processes, building efficient applications, and enhancing user experience.
-`;
-setSummary(superFixResumeUniversal(fixRepetitionGlobally(newSummary)));
 
   setSaveStatus("ATS Optimized ✓");
 };
@@ -1607,6 +1837,17 @@ section div {
               </span>
             </button>
 
+{/* 🔥 AI TOGGLE BUTTON (ADD HERE EXACTLY) */}
+<button
+  onClick={() => setUseAI(!useAI)}
+  className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-bold border ${
+    useAI
+      ? "bg-green-500/10 text-green-300 border-green-500/30"
+      : "bg-red-500/10 text-red-300 border-red-500/30"
+  }`}
+>
+  {useAI ? "AI ON" : "AI OFF"}
+</button>
             {/* AI Scan Option */}
             <button
               onClick={handleAIScan}
@@ -1859,13 +2100,48 @@ section div {
                 <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-pink-400">
                   Summary
                 </p>
-                <textarea
-                  rows={3}
-                  value={summary}
-                  onChange={(e) => setSummary(e.target.value)}
-                  className="w-full resize-none rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white focus:border-pink-500 outline-none transition-colors"
-                  placeholder="Short paragraph about your profile & strengths."
-                />
+                <div className="relative">
+<div
+  contentEditable
+  suppressContentEditableWarning
+  className="w-full min-h-[80px] rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white whitespace-pre-wrap focus:outline-none"
+  onInput={(e) => {
+    const text = e.currentTarget.innerText;
+    setSummary(text);
+    handleLiveGrammar(text);
+  }}
+  dangerouslySetInnerHTML={{
+    __html: highlightGrammar(summary),
+  }}
+/>
+
+  {/* 🔴 ISSUE COUNTER */}
+  {grammarIssues.length > 0 && (
+    <div className="absolute bottom-1 right-2 text-red-400 text-[10px]">
+      {grammarIssues.length} issues
+    </div>
+  )}
+</div>
+{grammarIssues.length > 0 && (
+  <div className="mt-2 p-2 rounded-lg bg-red-500/10 border border-red-500/20">
+    <p className="text-[11px] text-red-400 font-bold mb-1">
+      Grammar Issues
+    </p>
+
+    <ul className="text-[11px] text-red-300 space-y-1">
+      {grammarIssues.slice(0, 5).map((issue, i) => (
+        <li key={i}>
+          ❌ {issue.message}
+          {issue.replacements[0] && (
+            <span className="text-green-400 ml-2">
+              → {issue.replacements[0].value}
+            </span>
+          )}
+        </li>
+      ))}
+    </ul>
+  </div>
+)}
               </section>
 
               {/* 🟢 JOB DESCRIPTION INPUT */}
